@@ -3,11 +3,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .services import GooglePlacesServices
+from .serializers import PlaceSerializer
 # Create your views here.
 class NearbyTestView(APIView):
     """
     Vista de prueba para validar la conexión con Google Places API Nearby Search.
-    URL sugerida: /api/test-nearby/?lat=40.4167&lng=-3.7037
+    URL sugerida: /api/test-nearby/?lat=40.4167&long=-3.7037
     """
     def get(self, request):
         # 1. Extraer parámetros de la URL
@@ -24,19 +25,18 @@ class NearbyTestView(APIView):
         try:
             # 3. Llamamos al servicio que creamos antes
             # Convertimos a float para asegurar precisión matemática
-            data = GooglePlacesServices.search_places_nearBy(
+            raw_data = GooglePlacesServices.search_places_nearBy(
                 lat=float(lat), 
                 long=float(long), 
                 # radius=1500.0
             )
 
-            if data:
-                return Response(data, status=status.HTTP_200_OK)
+            if raw_data and 'places' in raw_data:
+                # PASO CLAVE: Serializamos la lista de lugares
+                serializer = PlaceSerializer(raw_data['places'], many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
             
-            return Response(
-                {"error": "No se obtuvieron resultados de Google"},
-                status=status.HTTP_502_BAD_GATEWAY
-            )
+            return Response({"results": []}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response(
