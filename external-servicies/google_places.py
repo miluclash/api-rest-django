@@ -7,12 +7,12 @@ from django.conf import settings
 class GooglePlacesServices:
     """Metodo para busqueda por texto"""
     @staticmethod
-    def search_places_by_text(query, location_bias = None):
+    def search_places_by_text(query,api_key, location_bias = None):
         url = "https://places.googleapis.com/v1/places:searchText"
         
         headers={
             "Content-Type": "application/json",
-            "X-Goog-Api-Key" : settings.GOOGLE_PLACES_API_KEY,
+            "X-Goog-Api-Key" : api_key,#settings.GOOGLE_PLACES_API_KEY,PARA QUE EL TEST NO USE DJANGO LE PASAMOS DIRECTAMENTE LA API KEY
             "X-Goog-FieldMask" : "places.id,places.displayName,places.formattedAddress", 
         }
         #RAW de Postman
@@ -27,7 +27,15 @@ class GooglePlacesServices:
 
         #Django devuelve al frontend un JSON
         response = requests.post(url, json=payload, headers=headers)
-        return response.json() if response.status_code == 200 else None
+        
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 401:
+            return {"error": "API key inválida o no autorizada"}
+        elif response.status_code == 400:
+            return {"error": "Petición incorrecta, revisa los parámetros"}
+        else:
+            return {"error": f"Error inesperado: {response.status_code}"}
     
     
     """Metodo para busqueda cercana al usuario
