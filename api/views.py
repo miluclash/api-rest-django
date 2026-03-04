@@ -43,3 +43,19 @@ class NearbyTestView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class SearchTextView(APIView):
+    def get(self, request):
+        #Parametros del endpoint
+        lat = request.query_params.get('lat')
+        long = request.query_params.get('long')
+
+        #Validacion basica
+        if not lat or not long:
+            return Response(
+                {"error": "Faltan los parametros 'lat' y 'long' en la URL."}
+            )
+        
+        #Llamamos al servicio
+        try:
+            raw_data = GooglePlacesServices.search_places_by_text()
