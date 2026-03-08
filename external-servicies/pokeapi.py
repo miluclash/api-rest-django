@@ -102,12 +102,29 @@ class PokeAPI:
         return random.choices(tipos, weights=probs, k=1)[0]
 
     def obtener_pokemon_por_tipo(self, tipo):
-        response = requests.get(f"https://pokeapi.co/api/v2/type/{tipo}").json()
-        entry = random.choice(response["pokemon"])
-        pokemon_url = entry["pokemon"]["url"]
-        return requests.get(pokemon_url).json()
+        try:
+            response = requests.get(f"https://pokeapi.co/api/v2/type/{tipo}")
+            if response.status_code != 200:
+                raise ValueError(f"Tipo de pokemon inválido: {tipo}")
+            data = response.json()
+            if "pokemon" not in data or len(data["pokemon"]) == 0:
+                raise ValueError("No se encontraron pokemon para este tipo")
+            entry = random.choice(data["pokemon"])
+            pokemon_url = entry["pokemon"]["url"]
+            pokemon_response = requests.get(pokemon_url)
+            if pokemon_response.status_code != 200:
+                raise RuntimeError("Error obteniendo datos del pokemon")
+            return pokemon_response.json()
+        except requests.exceptions.RequestException:
+            raise ConnectionError("No se pudo conectar con PokeAPI")
 
     def seleccionar_pokemon(self, temperature, windspeed, weather_code, is_day):
+        if not isinstance(temperature, (int, float)):
+            raise TypeError("temperature debe ser numérico")
+        if not isinstance(windspeed, (int, float)):
+            raise TypeError("windspeed debe ser numérico")
+        if is_day not in [0,1]:
+            raise ValueError("is_day debe ser 0 o 1")
         weights = self.calcular_pesos(temperature, windspeed, weather_code, is_day)
         tipo = self.seleccionar_tipo(weights)
         return self.obtener_pokemon_por_tipo(tipo)

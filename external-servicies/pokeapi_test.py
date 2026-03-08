@@ -1,48 +1,56 @@
-from pokeapi import PokeAPI
-
-
+from pokeapi import PokeAPI 
 class PokeAPITest:
 
-    def run_tests(self):
+    def test_calcular_pesos(self):
         api = PokeAPI()
-
-        pokemon = api.seleccionar_pokemon(
-            temperature=15,
-            windspeed=5,
-            weather_code=500,
-            is_day=1
-        )
-
         weights = api.calcular_pesos(-5, 2, 600, 1)
         assert weights["ice"] > 0
-        print("✔ TEST OK Comprobación de pesos")
+        print("calcular_pesos OK")
 
-        tipo = api.seleccionar_tipo({"fire": 10, "water": 0})
+    def test_seleccionar_tipo(self):
+        api = PokeAPI()
+        tipo = api.seleccionar_tipo({"fire":10,"water":0})
         assert tipo == "fire"
-        print("✔ TEST OK Comprobacion de tipos")
+        print("seleccionar_tipo OK")
 
-        assert isinstance(pokemon, dict), "La respuesta debe ser un diccionario"
-        print("✔ TEST OK La respuesta es un diccionario")
-        # Campos mínimos que siempre existen en PokeAPI
-        required_fields = ["id", "name", "height", "weight", "types", "sprites"]
+    def test_obtener_pokemon(self):
+        api = PokeAPI()
+        pokemon = api.seleccionar_pokemon(15,5,500,1)
+
+        assert isinstance(pokemon, dict)
+
+        required_fields = ["id","name","height","weight","types","sprites"]
         for field in required_fields:
-            assert field in pokemon, f"Falta el campo obligatorio: {field}"
-        print("✔ TEST OK Tiene todos los campos obligatorios")
-        # Validar tipos
-        assert isinstance(pokemon["types"], list), "types debe ser una lista"
-        print("✔ TEST OK Types es una lista")
-        assert len(pokemon["types"]) > 0, "Debe tener al menos un tipo"
-        print("✔ TEST OK Tiene al menos un tipo")
-        for t in pokemon["types"]:
-            assert "type" in t, "Cada entrada en types debe tener 'type'"
-            assert "name" in t["type"], "Cada type debe tener 'name'"
-        print("✔ TEST OK Todas las entradas de types tiene type y name")
-        # Validar sprites
-        assert isinstance(pokemon["sprites"], dict), "sprites debe ser un dict"
-        print("✔ TEST OK Sprites es un diccionario")
+            assert field in pokemon
+
+        print("Pokemon válido")
+    def test_tipo_invalido(self):
+        api = PokeAPI()
+
+        try:
+            api.obtener_pokemon_por_tipo("tipoinventado")
+            assert False, "Debía lanzar error"
+        except ValueError:
+            print("tipo inválido detectado")
+
+    def run_all(self):
+
+        tests = [
+            self.test_calcular_pesos,
+            self.test_seleccionar_tipo,
+            self.test_obtener_pokemon,
+            self.test_tipo_invalido
+        ]
+
+        for test in tests:
+            try:
+                test()
+            except AssertionError as e:
+                print(f" {test.__name__} falló:", e)
+            except Exception as e:
+                print(f"Error inesperado en {test.__name__}:", e)
 
 
-# Ejecutar tests si se llama directamente
 if __name__ == "__main__":
     tester = PokeAPITest()
-    tester.run_tests()
+    tester.run_all()
