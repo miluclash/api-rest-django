@@ -49,13 +49,31 @@ class SearchTextView(APIView):
         #Parametros del endpoint
         lat = request.query_params.get('lat')
         long = request.query_params.get('long')
+        query = request.query_params.get('textQuery')
 
         #Validacion basica
-        if not lat or not long:
+        if not lat or not long :
             return Response(
                 {"error": "Faltan los parametros 'lat' y 'long' en la URL."}
+            )
+        elif not query:
+            return Response(
+                {"error": "Faltan el texto de búsqueda."}
             )
         
         #Llamamos al servicio
         try:
-            raw_data = GooglePlacesServices.search_places_by_text()
+            raw_data = GooglePlacesServices.search_places_by_text(
+                query=query
+            )
+            
+            if raw_data and 'places' in raw_data:
+                serializer = PlaceSerializer(raw_data['places'], many=True)
+                return Response(serializer.data,status=status.HTTP_200_OK)
+            return Response({"results": []}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
