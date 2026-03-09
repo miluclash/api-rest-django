@@ -19,7 +19,7 @@ class PokeAPITest:
 
         assert isinstance(pokemon, dict)
 
-        required_fields = ["id","name","height","weight","types","sprites"]
+        required_fields = ["name","types"]
         for field in required_fields:
             assert field in pokemon
 
@@ -54,3 +54,6 @@ class PokeAPITest:
 if __name__ == "__main__":
     tester = PokeAPITest()
     tester.run_all()
+    api = PokeAPI()
+    pokemon = api.seleccionar_pokemon(15, 5, 500, 1)
+    print(pokemon)

@@ -1,3 +1,4 @@
+import json
 import random
 import requests
 
@@ -127,6 +128,12 @@ class PokeAPI:
             raise ValueError("is_day debe ser 0 o 1")
         weights = self.calcular_pesos(temperature, windspeed, weather_code, is_day)
         tipo = self.seleccionar_tipo(weights)
-        return self.obtener_pokemon_por_tipo(tipo)
+        data = self.obtener_pokemon_por_tipo(tipo)
+        nombre = data["name"]
+        tipos = [t["type"]["name"] for t in data["types"]]
+        return {
+            "name": nombre,
+            "types": tipos
+        }
 
 
