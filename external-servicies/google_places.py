@@ -5,15 +5,16 @@ import requests
 from django.conf import settings
 
 class GooglePlacesServices:
-    """Metodo para busqueda por texto"""
+    
     @staticmethod
-    def search_places_by_text(query,api_key, location_bias = None):
+    def search_places_by_text(query, location_bias = None):
+        """Metodo para busqueda por texto"""
         url = "https://places.googleapis.com/v1/places:searchText"
         
         headers={
             "Content-Type": "application/json",
-            "X-Goog-Api-Key" : api_key,#settings.GOOGLE_PLACES_API_KEY,PARA QUE EL TEST NO USE DJANGO LE PASAMOS DIRECTAMENTE LA API KEY
-            "X-Goog-FieldMask" : "places.id,places.displayName,places.formattedAddress", 
+            "X-Goog-Api-Key" : settings.GOOGLE_PLACES_API_KEY,#settings.GOOGLE_PLACES_API_KEY,PARA QUE EL TEST NO USE DJANGO LE PASAMOS DIRECTAMENTE LA API KEY
+            "X-Goog-FieldMask" : "places.id,places.displayName,places.formattedAddress,places.currentOpeningHours.openNow,places.rating", 
         }
         #RAW de Postman
         payload = {
@@ -25,7 +26,6 @@ class GooglePlacesServices:
         if location_bias:
             payload['locationBias'] = location_bias
 
-        #Django devuelve al frontend un JSON
         response = requests.post(url, json=payload, headers=headers)
         
         if response.status_code == 200:
@@ -38,13 +38,14 @@ class GooglePlacesServices:
             return {"error": f"Error inesperado: {response.status_code}"}
     
     
-    """Metodo para busqueda cercana al usuario
+    @staticmethod
+    def search_places_nearBy(lat, long):
+        """Metodo para busqueda cercana al usuario
         Este metodo recibe un par de coordenadas; Longitud y Latitud
         Segun el mecanismo SC2 de Google para buscar lugares, solo necesitariamos las coordenadas del 
         centro del radio de busqueda.
         Recibimos un diccionario con claves 'longitude' y 'latitude'"""
-    @staticmethod
-    def search_places_nearBy(lat, long):
+    
         url = "https://places.googleapis.com/v1/places:searchNearby"
         
         headers = {
@@ -59,7 +60,6 @@ class GooglePlacesServices:
             "locationRestriction": {
                 "circle": {
                     "center": {
-                        #Devuelve None si no tiene ubicacion especificada
                         "latitude": lat,
                         "longitude": long
                     },
@@ -67,12 +67,13 @@ class GooglePlacesServices:
                     }
             }
         }
-        #Prueba para comprobar que Django obtiene correctamente la API-KEY
-        print(f"DEBUG: Usando API KEY: {settings.GOOGLE_PLACES_API_KEY[:5]}...") # Solo muestra los primeros 5 caracteres por seguridad
         response = requests.post(url, json=payload, headers=headers)
         
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 401:
+            return {"error": "API key inválida o no autorizada"}
+        elif response.status_code == 400:
+            return {"error": "Petición incorrecta, revisa los parámetros"}
         else:
-            print(f"Error en Google API: {response.status_code} - {response.text}")
-            return None
+            return {"error": f"Error inesperado: {response.status_code}"}
