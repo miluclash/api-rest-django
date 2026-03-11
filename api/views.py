@@ -84,31 +84,62 @@ def api_view_michael(request):
 
 @api_view(['GET'])
 def api_view_jonathan(request):
-    # Mchael    
-    # 1 Wikidata
-
-    # Jonathana
-    # 1 PlacesNew
-
-    # Handrea
-    # 1 Clima
-    # 2 Pokemon
-
+    # Para este endpoint se espera recibir los siguientes parámetros en la URL:
+    # - date: Fecha en formato YYYY-MM-DD (opcional, por defecto se usará la fecha actual)
+    # - lat: Latitud
+    # - long: Longitud  
     date = request.query_params.get('date', datetime.datetime.now().strftime("%Y-%m-%d"))
+    lat = request.query_params.get('lat')
+    long = request.query_params.get('long')
 
+
+    if not lat or not long:
+        return HttpResponse(
+            json.dumps({"error": "Faltan los parámetros 'lat' y 'lng' en la URL"}),
+            content_type="application/json",
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    
     try:
         date = datetime.datetime.strptime(date, "%Y-%m-%d")
     except (ValueError, TypeError):
         return HttpResponse(json.dumps({
             "code": 400,
             "msg": "Invalid date format. Please use YYYY-MM-DD."
-        }), content_type="application/json", status=400)
+        }), content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
 
+    try:
+        searching_crime= wikidata_crime('ApiFp/0.1 (aticasmia007@gmail.com)')
+        crime = searching_crime.get_crime(date)
+    except Exception as e:
+        return HttpResponse(json.dumps({
+            "code": status.HTTP_400_BAD_REQUEST,
+            "msg": "Error al obtener datos de Wikidata.",
+        }), 
+        content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
 
-    searching_crime= wikidata_crime('ApiFp/0.1 (aticasmia007@gmail.com)')
+    try:
+        # 3. Llamamos al servicio que creamos antes
+        # Convertimos a float para asegurar precisión matemática
+        raw_data = GooglePlacesServices.search_places_nearBy(
+            lat=float(lat), 
+            long=float(long), 
+            # radius=1500.0
+        )
+        if raw_data and 'places' in raw_data:
+            # PASO CLAVE: Serializamos la lista de lugares
+            # print(raw_data['places'])
+            serializer = PlaceSerializer(raw_data['places'], many=True)
+            print(serializer.data)
+    except Exception as e:
+        return HttpResponse(
+            json.dumps({"error": str(e)}),
+            content_type="application/json",
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-    crime = searching_crime.get_crime(date)
-
+#    print(serializer.data)
     return HttpResponse(json.dumps({
         "code": 200,
         "msg": f'{{weather.city}}, {{weather.temp}}°C, {{weather.desc}}. Un {{pokemon.name}} tipo {{pokemon.types}} con las manos sucias y "{crime['itemLabel']}" en el expediente. Nadie pregunta, nadie responde. {{restaurant.name}} sirve cocina {{restaurant.cuisine}} hasta las 11pm. Suficiente tiempo para olvidar todo.'
