@@ -1,5 +1,6 @@
+import datetime
 import json
-
+from external_servicies.wikidata import wikidata_crime
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework.views import APIView
@@ -7,7 +8,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from external_servicies.google_places import GooglePlacesServices
 from .serializers import PlaceSerializer
-# Create your views here.
+from rest_framework.decorators import api_view
+
 
 
 def api_view_andrea(request):
@@ -40,6 +42,8 @@ def api_view_michael(request):
         "message": "Hello, World!"
     }), content_type="application/json")
 
+
+@api_view(['GET'])
 def api_view_jonathan(request):
     # Mchael    
     # 1 Wikidata
@@ -51,8 +55,24 @@ def api_view_jonathan(request):
     # 1 Clima
     # 2 Pokemon
 
+    date = request.query_params.get('date', datetime.datetime.now().strftime("%Y-%m-%d"))
+
+    try:
+        date = datetime.datetime.strptime(date, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return HttpResponse(json.dumps({
+            "code": 400,
+            "msg": "Invalid date format. Please use YYYY-MM-DD."
+        }), content_type="application/json", status=400)
+
+
+    searching_crime= wikidata_crime('ApiFp/0.1 (aticasmia007@gmail.com)')
+
+    crime = searching_crime.get_crime(date)
+
     return HttpResponse(json.dumps({
-        "message": "Hello, World!"
+        "code": 200,
+        "msg": f'{{weather.city}}, {{weather.temp}}°C, {{weather.desc}}. Un {{pokemon.name}} tipo {{pokemon.types}} con las manos sucias y "{crime['itemLabel']}" en el expediente. Nadie pregunta, nadie responde. {{restaurant.name}} sirve cocina {{restaurant.cuisine}} hasta las 11pm. Suficiente tiempo para olvidar todo.'
     }), content_type="application/json")
 
 class NearbyTestView(APIView):
@@ -127,3 +147,4 @@ class SearchTextView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
