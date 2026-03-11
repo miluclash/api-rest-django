@@ -15,3 +15,9 @@ db.sqlite3
 .DS_Store
 *.log
 *.pot
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
