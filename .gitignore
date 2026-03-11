@@ -11,3 +11,7 @@ db.sqlite3
 .venv/
 # Virtual environments
 .venv
+
+.DS_Store
+*.log
+*.pot
