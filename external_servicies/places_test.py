@@ -3,7 +3,7 @@ from google_places import GooglePlacesServices
 import os
 from dotenv import load_dotenv
 
-load_dotenv() # Carga las variables del .env
+load_dotenv(dotenv_path='../.env') # Carga las variables del .env
 api_key = os.getenv('GOOGLE_API_KEY')
 def search_places_by_text_test():
     query = "restaurantes cerca de Moratalaz"

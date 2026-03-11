@@ -11,3 +11,13 @@ db.sqlite3
 .venv/
 # Virtual environments
 .venv
+.idea/
+.DS_Store
+*.log
+*.pot
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
