@@ -1,6 +1,8 @@
 import datetime
 import json
 from external_servicies.wikidata import wikidata_crime
+import secrets
+
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework.views import APIView
@@ -14,7 +16,15 @@ from external_servicies.pokeapi import PokeAPI
 from dotenv import load_dotenv
 import os
 
+from django.contrib.auth.models import User
+from rest_framework import generics, permissions
+from rest_framework.response import Response
 
+from .models import UserAPIKey
+from .serializers import UserSerializer
+from django.contrib.auth import authenticate, login, logout
+from rest_framework.views import APIView
+from rest_framework import status
 # Create your views here.
 
 @api_view(['GET'])
@@ -28,28 +38,28 @@ def api_view_andrea(request):
     # Handrea
     # 1 Clima
     #Crear los parametros, que se pasan por url. <lat><lon>
-    load_dotenv()  
+    load_dotenv()
     api_key = os.getenv("OPENWEATHER_API_KEY")
     #Creo el objeto clima
     clima= OpenWeatherMap(api_key)
     #Creo diccionario de coordenadas recibidas por param
     lat= request.query_params.get("lat")
     lon = request.query_params.get("lon")
-    
+
     coord = {
         "lat": lat, #seria lat lon
         "lon": lon
     }
-    #Llamo al método para recibir el json
+    #Llamo al mé
     data_clima = clima.get_coord_forecast(coord)
-
-    #SACAR 
+    print(data_clima)
+    #SACAR
     # 2 Pokemon
     #Utilizo los datos de data_clima!
     pokemon_creacion=PokeAPI()
     pokemon_elegido=pokemon_creacion.seleccionar_pokemon(data_clima["list"][0]["main"]["temp"], data_clima["list"][0]["wind"]["speed"], data_clima["list"][0]["weather"][0]["id"], data_clima["city"]['sun_visible'])
     #seguir desde aquí.
-    
+
     return HttpResponse(json.dumps({
         "message": "api andrea funciona",
         "pokemonName": pokemon_elegido["name"],
@@ -125,8 +135,8 @@ class NearbyTestView(APIView):
             # 3. Llamamos al servicio que creamos antes
             # Convertimos a float para asegurar precisión matemática
             raw_data = GooglePlacesServices.search_places_nearBy(
-                lat=float(lat), 
-                long=float(long), 
+                lat=float(lat),
+                long=float(long),
                 # radius=1500.0
             )
 
@@ -134,7 +144,7 @@ class NearbyTestView(APIView):
                 # PASO CLAVE: Serializamos la lista de lugares
                 serializer = PlaceSerializer(raw_data['places'], many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
-            
+
             return Response({"results": []}, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -159,21 +169,76 @@ class SearchTextView(APIView):
             return Response(
                 {"error": "Faltan el texto de búsqueda."}
             )
-        
+
         #Llamamos al servicio
         try:
             raw_data = GooglePlacesServices.search_places_by_text(
                 query=query
             )
-            
+
             if raw_data and 'places' in raw_data:
                 serializer = PlaceSerializer(raw_data['places'], many=True)
                 return Response(serializer.data,status=status.HTTP_200_OK)
             return Response({"results": []}, status=status.HTTP_200_OK)
-        
+
         except Exception as e:
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+# User Registration View
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def perform_create(self, serializer):
+        # Ensure password is hashed
+        password = self.request.data.get("password")
+        user = serializer.save()
+
+        if password:
+            user.set_password(password)
+            user.save()
+            UserAPIKey.objects.create(user=user)
+
+
+# User Profile (requires authentication)
+class ProfileView(generics.RetrieveAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+class RegenerateAPIKeyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        api_key = request.user.api_key
+        api_key.key = secrets.token_hex(32)
+        api_key.save()
+        return Response({"api_key": api_key.key})
+
+class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return Response({"message": "Login successful"}, status=status.HTTP_200_OK)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        logout(request)
+        return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
