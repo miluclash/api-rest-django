@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
 class PlaceSerializer(serializers.Serializer):
@@ -25,13 +26,19 @@ class PlaceSerializer(serializers.Serializer):
             "lat": location.get('latitude'),
             "lng": location.get('longitude')
         }
-    
+
     def get_rating(self,obj):
         rating = obj.get('rating','Rating no definido')
         return rating
-    
+
     def get_openNow(self,obj):
         openNow = obj.get('currentOpeningHours', {})
         return openNow.get('openNow')
-    
+
     #def get_priceRange(self,obj)PENDIENTE DE IMPLEMENTAR MOSTRAR EL RANGO DE PRECIOS DEL LUGAR:
+class UserSerializer(serializers.ModelSerializer):
+    api_key = serializers.CharField(source="api_key.key", read_only=True)
+    class Meta:
+        model = User
+        # We only expose basic user fields
+        fields = ['id', 'username', 'email', 'is_staff', "api_key"]
