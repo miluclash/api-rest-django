@@ -26,6 +26,10 @@ from .serializers import UserSerializer
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.views import APIView
 from rest_framework import status
+
+from django.core.cache import cache
+from datetime import timedelta
+# Create your views here.
 api_key = os.getenv("OPENWEATHER_API_KEY")
 
 @api_view(['GET'])
@@ -54,7 +58,8 @@ def api_view_andrea(request):
     #Llamo al mé
     data_clima = clima.get_coord_forecast(coord)
     print(data_clima)
-    #SACAR
+
+
     # 2 Pokemon
     #Utilizo los datos de data_clima!
     pokemon_creacion=PokeAPI()
@@ -294,3 +299,37 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+    
+
+
+
+class RedisCache(): 
+    @staticmethod
+    def cache_get_ttl_medianoche():
+        segundos_a_medianoche = datetime.datetime.now()  - (datetime.datetime.now() - timedelta(days=1))
+        segundos_a_medianoche = segundos_a_medianoche.total_seconds
+        return segundos_a_medianoche
+    
+    @staticmethod
+    def cache_add_info_crimen(key, value, ttl = cache_get_ttl_medianoche()): #default -> hasta el dia siguiente
+            try:
+                cache.set(key, value, ttl)
+            except Exception as ex:
+                return Response({
+                    "Error":"El caché ha fallado. No se ha podido almacenar el crimen"
+                })
+            
+    @staticmethod
+    def cache_get_info_crimen(key): #No sé si realmente poner esto.... -> key será 
+            try:
+                if (cache.get(key) != None):
+                    return cache.get(key) #mejor esto o hacer una variable?
+                else:
+                    searching_crime= wikidata_crime('ApiFp/0.1 (aticasmia007@gmail.com)')
+                    crime = searching_crime.get_crime(key)
+                    RedisCache.cache_add_info_crimen(key, crime)
+            except Exception as ex:
+                return Response(
+                {"error": "El caché ha fallado"}
+            )  
+            
