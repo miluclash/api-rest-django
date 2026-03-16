@@ -26,7 +26,7 @@ from .serializers import UserSerializer
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.views import APIView
 from rest_framework import status
-# Create your views here.
+api_key = os.getenv("OPENWEATHER_API_KEY")
 
 @api_view(['GET'])
 def api_view_andrea(request):
@@ -39,7 +39,7 @@ def api_view_andrea(request):
     # Handrea
     # 1 Clima
     #Crear los parametros, que se pasan por url. <lat><lon>
-    load_dotenv()
+    
     api_key = os.getenv("OPENWEATHER_API_KEY")
     #Creo el objeto clima
     clima= OpenWeatherMap(api_key)
@@ -67,22 +67,6 @@ def api_view_andrea(request):
         "types": pokemon_elegido["types"]
     }), content_type="application/json")
 
-def api_view_michael(request):
-    # Mchael    
-    # 1 Wikidata
-
-    # Jonathan
-    # 1 PlacesNew
-
-    # Handrea
-    # 1 Clima
-    # 2 Pokemon
-
-    return HttpResponse(json.dumps({
-        "message": "Hello, World!"
-    }), content_type="application/json")
-
-
 @api_view(['GET'])
 def api_view_jonathan(request):
     # Para este endpoint se espera recibir los siguientes parámetros en la URL:
@@ -91,17 +75,46 @@ def api_view_jonathan(request):
     # - long: Longitud  
     date = request.query_params.get('date', datetime.datetime.now().strftime("%Y-%m-%d"))
     lat = request.query_params.get('lat')
-    long = request.query_params.get('long')
+    lon = request.query_params.get('lon')
 
 
-    if not lat or not long:
+    if not lat or not lon:
         return HttpResponse(
             json.dumps({"error": "Faltan los parámetros 'lat' y 'lng' en la URL"}),
             content_type="application/json",
             status=status.HTTP_400_BAD_REQUEST
         )
     
+    try:
+        coord = {
+            "lat": lat, #seria lat lon
+            "lon": lon
+        }
+        clima= OpenWeatherMap(api_key)
+        data_clima = clima.get_coord_forecast(coord)
+    except Exception as e:
+        return HttpResponse(json.dumps({
+            "code": status.HTTP_400_BAD_REQUEST,
+            "msg": "Error al obtener datos del clima.",
+        }), 
+        content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
     
+
+    try:
+        pokemon_creacion=PokeAPI()
+        pokemon_elegido=pokemon_creacion.seleccionar_pokemon(
+            data_clima["list"][0]["main"]["temp"],
+            data_clima["list"][0]["wind"]["speed"],
+            data_clima["list"][0]["weather"][0]["id"],
+            data_clima["city"]['sun_visible']
+        )
+    except Exception as e:
+        return HttpResponse(json.dumps({
+            "code": status.HTTP_400_BAD_REQUEST,
+            "msg": "Error al obtener datos de Pokemon.",
+        }), 
+        content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
+
     try:
         date = datetime.datetime.strptime(date, "%Y-%m-%d")
     except (ValueError, TypeError):
@@ -125,7 +138,7 @@ def api_view_jonathan(request):
         # Convertimos a float para asegurar precisión matemática
         raw_data = GooglePlacesServices.search_places_nearBy(
             lat=float(lat), 
-            long=float(long), 
+            long=float(lon), 
             # radius=1500.0
         )
         if raw_data and 'places' in raw_data:
@@ -136,7 +149,7 @@ def api_view_jonathan(request):
 
 
         gemini = Gemini()
-        response = gemini.generar_broma( None, None, crime['itemLabel'], serializer.data[0])
+        response = gemini.generar_broma( pokemon_elegido, data_clima, crime['itemLabel'], serializer.data[0])
         print(response)
 
 
