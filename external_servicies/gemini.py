@@ -26,4 +26,4 @@ class Gemini:
                 temperature=1),
             contents=prompt
         )
-        print(response.text)
+        return response.text

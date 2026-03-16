@@ -1,5 +1,6 @@
 import datetime
 import json
+from external_servicies.gemini import Gemini
 from external_servicies.wikidata import wikidata_crime
 import secrets
 
@@ -132,6 +133,13 @@ def api_view_jonathan(request):
             # print(raw_data['places'])
             serializer = PlaceSerializer(raw_data['places'], many=True)
             print(serializer.data)
+
+
+        gemini = Gemini()
+        response = gemini.generar_broma( None, None, crime['itemLabel'], serializer.data[0])
+        print(response)
+
+
     except Exception as e:
         return HttpResponse(
             json.dumps({"error": str(e)}),
@@ -142,7 +150,7 @@ def api_view_jonathan(request):
 #    print(serializer.data)
     return HttpResponse(json.dumps({
         "code": 200,
-        "msg": f'{{weather.city}}, {{weather.temp}}°C, {{weather.desc}}. Un {{pokemon.name}} tipo {{pokemon.types}} con las manos sucias y "{crime['itemLabel']}" en el expediente. Nadie pregunta, nadie responde. {{restaurant.name}} sirve cocina {{restaurant.cuisine}} hasta las 11pm. Suficiente tiempo para olvidar todo.'
+        "msg": f'{response}'
     }), content_type="application/json")
 
 class NearbyTestView(APIView):
