@@ -54,7 +54,6 @@ class wikidata_crime():
             value = crimen[0][key]["value"]
             crimenLimpio[key]=value #Lo añado al nuevo dic
 
-        print(crimenLimpio)
         return crimenLimpio 
         
 
