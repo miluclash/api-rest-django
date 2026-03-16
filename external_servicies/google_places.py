@@ -46,12 +46,12 @@ class GooglePlacesServices:
         centro del radio de busqueda.
         Recibimos un diccionario con claves 'longitude' y 'latitude'"""
     
-        url = "https://places.googleapis.com/v1/places:searchNearby"
+        url = "https://places.googleapis.com/v1/places:searchNearby" 
         
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key" : settings.GOOGLE_PLACES_API_KEY,
-            "X-Goog-FieldMask" : "places.displayName,places.currentOpeningHours.openNow,places.formattedAddress,places.rating,places.priceRange", 
+            "X-Goog-FieldMask" : "places.displayName,places.location,places.currentOpeningHours.openNow,places.formattedAddress,places.rating,places.priceRange", 
         }
         
         payload = {
