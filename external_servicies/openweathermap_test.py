@@ -2,8 +2,8 @@ from openweathermap import OpenWeatherMap
 
 from dotenv import load_dotenv
 import os
-load_dotenv()  
 
+load_dotenv()  
 api_key = os.getenv("OPENWEATHER_API_KEY")
 
 def test_get_forecast_200():
