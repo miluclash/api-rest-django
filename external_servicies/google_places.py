@@ -76,4 +76,5 @@ class GooglePlacesServices:
         elif response.status_code == 400:
             return {"error": "Petición incorrecta, revisa los parámetros"}
         else:
+            # TODO: Manejar otros códigos de error según la documentación de Google Places API
             return {"error": f"Error inesperado: {response.status_code}"}
