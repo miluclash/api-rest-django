@@ -44,7 +44,7 @@ class wikidata_crime():
         
         if not crimen: #control de errores, por si la fecha no devuelve ningún crimen!
             print("No se encontraron crímenes para esa fecha.")
-            return None
+            return { "itemLabel": None, "itemDescription": None, "enlaces": None }
         
         #recorro el json/diccionario creando un dic limpio, solo con los valores VALUE de cada KEY
         crimenLimpio={}
