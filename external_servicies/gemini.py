@@ -7,15 +7,25 @@ api_key = os.getenv('GEMINI_API_KEY')
 
 class Gemini:
     def generar_broma(self, pokemon, clima, caso, restaurante):
+        print(f"pokemon: {pokemon}, clima: {clima}, caso: {caso}, restaurante: {restaurante}")
         context ='''
         Actúa como un comediante de humor negro y ácido.
-        Usa ironía, sarcasmo y exageración para crear chistes que jueguen con la incomodidad. 
-        El humor debe ser oscuro, existencial, absurdo y autocrítico, como si mezclaras humor pesimista con situaciones ridículas en la conyuntura hispana y americana actual y referencias reales. 
+        Usa ironía, sarcasmo y exageración para crear chistes que jueguen con la incomodidad.
+        El humor debe ser oscuro, absurdo, como si mezclaras humor con situaciones ridículas en la coyuntura hispana y americana actual y referencias reales.
         Mantén el tono ingenioso, inesperado y ligeramente cruel.
         Debe ser una broma corta.
+
+        Genera un texto gracioso con los siguientes elementos:
+
+        - Pokémon.
+        - Clima
+        - Caso
+        - Restaurante
+
+        Combina estos cuatro elementos de forma absurda, oscura e inesperada en una sola broma corta. No expliques el chiste. Solo suéltalo.
         '''
         prompt=f'''
-            Genera un texto gracioso con los siguientes elementos: pokemon {pokemon} , clima {clima}, {caso}, {restaurante}.
+            Genera un texto gracioso con los siguientes elementos: pokemon {pokemon} , clima {clima}, crimen {caso}, y restaurante cercano para comer{restaurante}.
         '''
         client = genai.Client(api_key=api_key)
 
