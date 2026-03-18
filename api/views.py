@@ -121,7 +121,7 @@ def api_view_jonathan(request):
         content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        date = datetime.datetime.strptime(date, "%Y-%m-%d")
+        date = datetime.datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
     except (ValueError, TypeError):
         return HttpResponse(json.dumps({
             "code": 400,
@@ -129,8 +129,7 @@ def api_view_jonathan(request):
         }), content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        searching_crime= wikidata_crime('ApiFp/0.1 (aticasmia007@gmail.com)')
-        crime = searching_crime.get_crime(date)
+        crime= RedisCache.cache_get_info_crimen("2026-05-25")
     except Exception as e:
         return HttpResponse(json.dumps({
             "code": status.HTTP_400_BAD_REQUEST,
@@ -306,9 +305,9 @@ class LogoutView(APIView):
 class RedisCache(): 
     @staticmethod
     def cache_get_ttl_medianoche():
-        segundos_a_medianoche = datetime.datetime.now()  - (datetime.datetime.now() - timedelta(days=1))
-        segundos_a_medianoche = segundos_a_medianoche.total_seconds
-        return segundos_a_medianoche
+        now=datetime.datetime.now()
+        segundos_a_medianoche = ((now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0) - now)
+        return int(segundos_a_medianoche.total_seconds())
     
     @staticmethod
     def cache_add_info_crimen(key, value, ttl = cache_get_ttl_medianoche()): #default -> hasta el dia siguiente
@@ -320,16 +319,15 @@ class RedisCache():
                 })
             
     @staticmethod
-    def cache_get_info_crimen(key): #No sé si realmente poner esto.... -> key será 
+    def cache_get_info_crimen(key): #KEY-> fecha en str. 
             try:
-                if (cache.get(key) != None):
-                    return cache.get(key) #mejor esto o hacer una variable?
-                else:
+                cache_data=cache.get(key) 
+                if (cache_data== None):
                     searching_crime= wikidata_crime('ApiFp/0.1 (aticasmia007@gmail.com)')
-                    crime = searching_crime.get_crime(key)
-                    RedisCache.cache_add_info_crimen(key, crime)
+                    RedisCache.cache_add_info_crimen(key, searching_crime.get_crime(key))
+                    cache_data = cache.get(key)
+                return cache_data
             except Exception as ex:
-                return Response(
-                {"error": "El caché ha fallado"}
-            )  
-            
+                return Response ({
+                    "error": "El caché ha fallado"
+                })
