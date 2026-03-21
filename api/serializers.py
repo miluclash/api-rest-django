@@ -42,3 +42,16 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         # We only expose basic user fields
         fields = ['id', 'username', 'email', 'is_staff', "api_key"]
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']
+
+
+class LoginSerializer(serializers.ModelSerializer):
+   
+    class Meta:
+        model = User
+        fields = ['username', 'password']
