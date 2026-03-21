@@ -6,6 +6,7 @@ urlpatterns = [
     # Aquí ir añadiendo los endpoints.
     path("andrea/", views.api_view_andrea, name="andrea-view"),
     path('jonathan/', views.api_view_jonathan, name='api_view_jonathan'),
+    path('pokecrimenweather/', views.PokeCrimeWeatherView.as_view(), name='poke_crimen_weather'),
 
     path('register/', RegisterView.as_view(), name='register'),
     path('profile/', ProfileView.as_view(), name='profile'),

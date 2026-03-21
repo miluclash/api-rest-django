@@ -1,20 +1,19 @@
 import datetime
 import json
+from api.permissions import hasAPIKey
 from external_servicies.gemini import Gemini
 from external_servicies.wikidata import wikidata_crime
 import secrets
 
-from django.http import HttpResponse
-from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from external_servicies.google_places import GooglePlacesServices
-from .serializers import PlaceSerializer
+from .serializers import LoginSerializer, PlaceSerializer, UserRegisterSerializer
 from rest_framework.decorators import api_view
 from external_servicies.openweathermap import OpenWeatherMap
 from external_servicies.pokeapi import PokeAPI
-from dotenv import load_dotenv
 import os
 
 from django.contrib.auth.models import User
@@ -122,13 +121,11 @@ def api_view_jonathan(request):
         )
         poke_type = pokemon_creacion.seleccionar_tipo(poke_pesos)
         pokemon_elegido = RedisCache.cache_get_poke_list(poke_type)
-        
-        
-
+    
     except Exception as e:
         return HttpResponse(json.dumps({
             "code": status.HTTP_400_BAD_REQUEST,
-            "msg": "Error al obtener datos de Pokemon.",
+            "msg": "Error al obtener datos de Pokemon. " + e.__str__()
         }), 
         content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
 
@@ -141,7 +138,7 @@ def api_view_jonathan(request):
         }), content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        crime= RedisCache.cache_get_info_crimen("2026-05-25")
+        crime= RedisCache.cache_get_info_crimen(date)
     except Exception as e:
         return HttpResponse(json.dumps({
             "code": status.HTTP_400_BAD_REQUEST,
@@ -161,12 +158,10 @@ def api_view_jonathan(request):
             # PASO CLAVE: Serializamos la lista de lugares
             # print(raw_data['places'])
             serializer = PlaceSerializer(raw_data['places'], many=True)
-            print(serializer.data)
 
 
         gemini = Gemini()
         response = gemini.generar_broma( pokemon_elegido, data_clima, crime['itemLabel'], serializer.data[0])
-        print(response)
 
 
     except Exception as e:
@@ -176,11 +171,129 @@ def api_view_jonathan(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-#    print(serializer.data)
     return HttpResponse(json.dumps({
         "code": 200,
         "msg": f'{response}'
     }), content_type="application/json")
+
+
+class PokeCrimeWeatherView(APIView):
+    permission_classes = [permissions.AllowAny, hasAPIKey]
+
+    def get(self, request):
+        """
+            Para este endpoint se espera recibir los siguientes parámetros en la URL:
+            - date: Fecha en formato YYYY-MM-DD (opcional, por defecto se usará la fecha actual)
+            - lat: Latitud
+            - long: Longitud 
+        """ 
+        date = request.query_params.get('date', datetime.datetime.now().strftime("%Y-%m-%d"))
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+
+        data_clima = None
+        pokemon_elegido = None
+        crime = None
+        gemini_response = None
+
+        # Validación básica de parámetros
+        if not lat or not lon:
+            return HttpResponse(
+                json.dumps({"error": "Faltan los parámetros 'lat' y 'lng' en la URL"}),
+                content_type="application/json",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+       # 1. Obtener datos del clima 
+        try:
+            coord = {
+                "lat": lat,
+                "lon": lon
+            }
+            clima= OpenWeatherMap(api_key)
+            data_clima = clima.get_coord_forecast(coord)
+        except Exception as e:
+            return HttpResponse(json.dumps({
+                "code": status.HTTP_400_BAD_REQUEST,
+                "msg": "Error al obtener datos del clima.",
+            }), 
+            content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
+        
+        # Consulta a PokeAPI y selección de Pokémon
+        try:
+            pokemon_creacion=PokeAPI()
+            pokemon_elegido=pokemon_creacion.seleccionar_pokemon(
+                data_clima["list"][0]["main"]["temp"],
+                data_clima["list"][0]["wind"]["speed"],
+                data_clima["list"][0]["weather"][0]["id"],
+                data_clima["city"]['sun_visible']
+            )
+            #TODO REVISAR PORQUE ESTO TRAE MUCHOS POKEMONES y satura el modelo de gemini.
+            # poke_pesos = pokemon_creacion.calcular_pesos( 
+            #     data_clima["list"][0]["main"]["temp"],
+            #     data_clima["list"][0]["wind"]["speed"],
+            #     data_clima["list"][0]["weather"][0]["id"],
+            #     data_clima["city"]['sun_visible']
+            # )
+            # poke_type = pokemon_creacion.seleccionar_tipo(poke_pesos)
+            # pokemon_elegido = RedisCache.cache_get_poke_list(poke_type)
+        
+        except Exception as e:
+            return HttpResponse(json.dumps({
+                "code": status.HTTP_400_BAD_REQUEST,
+                "msg": "Error al obtener datos de Pokemon. " + e.__str__()
+            }), 
+            content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validación de formato de fecha
+        try:
+            date = datetime.datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            return HttpResponse(json.dumps({
+                "code": status.HTTP_400_BAD_REQUEST,
+                "msg": "Invalid date format. Please use YYYY-MM-DD."
+            }), content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
+        
+        # Consulta a Wikidata para obtener crimen del día
+        try:
+            crime= RedisCache.cache_get_info_crimen(date)
+        except Exception as e:
+            return HttpResponse(json.dumps({
+                "code": status.HTTP_400_BAD_REQUEST,
+                "msg": "Error al obtener datos de Wikidata.",
+            }), 
+            content_type="application/json",status=status.HTTP_400_BAD_REQUEST)
+        
+        # Consulta a Google Places API para obtener un restaurante cercano
+        try:
+            raw_data = GooglePlacesServices.search_places_nearBy(
+                lat=float(lat), 
+                long=float(lon), 
+                # radius=1500.0
+            )
+            if raw_data and 'places' in raw_data:
+                serializer = PlaceSerializer(raw_data['places'], many=True)
+
+            gemini = Gemini()
+            gemini_response = gemini.generar_broma( pokemon_elegido, data_clima, crime, serializer.data[0])
+
+        except Exception as e:
+            return HttpResponse(json.dumps({
+                "code": status.HTTP_400_BAD_REQUEST,
+                "msg": "Error al obtener mensaje final de gemini.",
+            },
+            content_type="application/json", status = status.HTTP_400_BAD_REQUEST)), 
+    
+
+        return JsonResponse({
+            "code": status.HTTP_200_OK,
+            "msg": f'{gemini_response}',
+            "crime": crime,
+            "pokemon": pokemon_elegido,
+            "clima": data_clima,
+            "restaurante": serializer.data
+        }, content_type="application/json", status=status.HTTP_200_OK)
+
 
 class NearbyTestView(APIView):
     """
@@ -259,7 +372,7 @@ class SearchTextView(APIView):
 # User Registration View
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = UserRegisterSerializer
     permission_classes = [permissions.AllowAny]
 
     def perform_create(self, serializer):
@@ -293,6 +406,8 @@ class RegenerateAPIKeyView(APIView):
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    serializer_class = LoginSerializer
+    
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
@@ -326,6 +441,7 @@ class RedisCache():
             try:
                 cache.set(key, value, ttl)
             except Exception as ex:
+                raise Exception("El caché de Wikidata ha fallado")
                 return Response({
                     "Error":"El caché de Wikidata ha fallado. No se ha podido almacenar el crimen"
                 })
@@ -340,6 +456,7 @@ class RedisCache():
                     cache_data = cache.get(key)
                 return cache_data
             except Exception as ex:
+                raise Exception("El caché de Wikidata ha fallado")
                 return Response ({
                     "error": "El caché de Wikidata ha fallado"
                 })
@@ -348,19 +465,26 @@ class RedisCache():
         try:
             cache.set(key, value, ttl)
         except Exception as ex:
+            raise Exception("El caché de PokeAPI ha fallado")
             return Response({
                     "Error":"El caché de PokeAPI ha fallado. No se ha podido almacenar los pokemon"
                 })
     @staticmethod
     def cache_get_poke_list(key): #la llave es el tipo
+        print(key)
         try:
             cache_data_poke = cache.get(key)
-            if (cache_data_poke== None):
+            
+            if (cache_data_poke == None):
+                # TODO REVISAR PORQUE ESTO TRAE MUCHOS POKEMONES y satura el modelo de gemini.
                 lista_nombres = PokeAPI.obtener_pokemon_por_tipo(key, 10) #Esto necesito que se cambie
+                #TODO PREGUNTAR A ANDREA Y A KEVIN PORUQUE NO SE RETORNA. UNA LISTA
+                return lista_nombres
                 RedisCache.cache_add_poke_list(key, lista_nombres)
                 cache_data_poke= cache.get(key)
             return random.choice(cache_data_poke)
         except Exception as ex:
+            raise Exception("El caché de PokeAPI ha fallado " + ex.__str__())
             return Response ({
                     "error": "El caché de PokeApi ha fallado"
                 })
