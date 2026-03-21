@@ -194,6 +194,7 @@ class PokeCrimeWeatherView(APIView):
         data_clima = None
         pokemon_elegido = None
         crime = None
+        restaurante = None
         gemini_response = None
 
         # Validación básica de parámetros
@@ -271,18 +272,25 @@ class PokeCrimeWeatherView(APIView):
                 long=float(lon), 
                 # radius=1500.0
             )
+            print(raw_data)
             if raw_data and 'places' in raw_data:
                 serializer = PlaceSerializer(raw_data['places'], many=True)
+                restaurante = serializer.data
+        
 
             gemini = Gemini()
-            gemini_response = gemini.generar_broma( pokemon_elegido, data_clima, crime, serializer.data[0])
+            gemini_response = gemini.generar_broma(
+                pokemon_elegido,
+                data_clima, crime,
+                restaurante[0] if restaurante else None
+            )
 
         except Exception as e:
             return HttpResponse(json.dumps({
                 "code": status.HTTP_400_BAD_REQUEST,
-                "msg": "Error al obtener mensaje final de gemini.",
-            },
-            content_type="application/json", status = status.HTTP_400_BAD_REQUEST)), 
+                "msg": "Error al obtener mensaje final de gemini. " + e.__str__()
+            }),
+            content_type="application/json", status = status.HTTP_400_BAD_REQUEST), 
     
 
         return JsonResponse({
@@ -291,7 +299,7 @@ class PokeCrimeWeatherView(APIView):
             "crime": crime,
             "pokemon": pokemon_elegido,
             "clima": data_clima,
-            "restaurante": serializer.data
+            "restaurant": restaurante
         }, content_type="application/json", status=status.HTTP_200_OK)
 
 

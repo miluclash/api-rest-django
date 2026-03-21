@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa Interactivo</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0c10;
+      --surface: #12151c;
+      --border: #1e2330;
+      --accent: #f0c040;
+      --accent2: #4af0a0;
+      --accent3: #f04060;
+      --text: #e8eaf0;
+      --muted: #6b7490;
+      --font-ui: 'Syne', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font-ui);
+      color: var(--text);
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair !important;
+    }
+
+    /* Custom tile layer dark style via filter */
+    .leaflet-tile-pane { filter: brightness(0.7) saturate(0.5) hue-rotate(200deg); }
+
+    /* HUD overlay — top left */
+    #hud {
+      position: fixed;
+      top: 20px; left: 20px;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    #hud h1 {
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      opacity: 0.9;
+    }
+    #hud .coords {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Loading pulse */
+    #loading {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      z-index: 2000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    #loading.active { display: flex; }
+    .pulse-ring {
+      width: 48px; height: 48px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      animation: pulse 1s ease-out infinite;
+    }
+    .pulse-ring:nth-child(2) { animation-delay: 0.3s; position: absolute; }
+    @keyframes pulse {
+      0% { transform: scale(0.6); opacity: 1; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+    #loading span {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    /* ── POPUP ── */
+    .leaflet-popup-content-wrapper {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    .leaflet-popup-tip-container { display: none; }
+    .leaflet-popup-content {
+      margin: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+
+    .popup-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      width: 380px;
+      font-family: var(--font-ui);
+      overflow: hidden;
+      box-shadow: 0 0 0 1px var(--accent) inset, 8px 8px 0 var(--accent);
+      animation: cardIn 0.25s cubic-bezier(0.16,1,0.3,1);
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+    }
+    .popup-scroll {
+      overflow-y: auto;
+      flex: 1;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) var(--bg);
+    }
+    .popup-scroll::-webkit-scrollbar { width: 4px; }
+    .popup-scroll::-webkit-scrollbar-track { background: var(--bg); }
+    .popup-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .popup-header {
+      background: var(--accent);
+      color: var(--bg);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .popup-header .coords-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+    .popup-header .tag {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .popup-body { padding: 0; }
+
+    /* Section rows */
+    .section {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+    }
+    .section:last-child { border-bottom: none; }
+    .section-label {
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Weather */
+    .weather-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .weather-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+    .weather-info { flex: 1; }
+    .weather-temp {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1;
+    }
+    .weather-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .weather-meta {
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .meta-item {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .meta-item span { color: var(--text); }
+
+    /* Pokemon */
+    .poke-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .poke-sprite {
+      width: 52px; height: 52px;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 0 6px rgba(240,192,64,0.4));
+    }
+    .poke-name {
+      font-size: 15px;
+      font-weight: 800;
+      text-transform: capitalize;
+      letter-spacing: 0.05em;
+    }
+    .poke-types {
+      display: flex;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    .type-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+    .type-grass  { background: #1a3d1a; color: var(--accent2); border: 1px solid var(--accent2); }
+    .type-ground { background: #3d2a0a; color: #f0a040; border: 1px solid #f0a040; }
+    .type-fire   { background: #3d1a0a; color: #f06040; border: 1px solid #f06040; }
+    .type-water  { background: #0a1a3d; color: #40a0f0; border: 1px solid #40a0f0; }
+    .type-default { background: var(--border); color: var(--muted); border: 1px solid var(--muted); }
+
+    /* Crime */
+    .crime-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent3);
+      line-height: 1.3;
+    }
+    .crime-desc {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 3px;
+      font-family: var(--font-mono);
+    }
+    .crime-links {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+    .crime-links span { color: var(--accent3); }
+
+    /* Restaurants */
+    .resto-list { display: flex; flex-direction: column; gap: 6px; }
+    .resto-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 6px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+    }
+    .resto-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .resto-addr {
+      font-size: 9px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-family: var(--font-mono);
+      max-width: 220px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .resto-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+    .resto-rating {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .open-badge {
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      padding: 1px 5px;
+      background: rgba(74,240,160,0.1);
+      color: var(--accent2);
+      border: 1px solid rgba(74,240,160,0.3);
+      border-radius: 2px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    /* ── MSG SATIRICO ── */
+    .msg-section {
+      background: linear-gradient(135deg, #1a0f00 0%, #110a1a 100%);
+      border-bottom: 2px solid var(--accent3);
+      padding: 14px 14px 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .msg-section::before {
+      content: '📡';
+      position: absolute;
+      top: -6px; right: -4px;
+      font-size: 52px;
+      opacity: 0.07;
+      pointer-events: none;
+    }
+    .msg-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent3);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .msg-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--accent3);
+      border-radius: 50%;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+    .msg-text {
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #d0d4e8;
+      font-style: italic;
+      font-family: 'Syne', sans-serif;
+      font-weight: 400;
+      position: relative;
+      padding-left: 12px;
+      border-left: 2px solid rgba(240,64,96,0.4);
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    /* Custom marker */
+    .custom-marker {
+      width: 20px; height: 20px;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+      transform: rotate(45deg);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(240,192,64,0.5);
+      transition: box-shadow 0.2s;
+    }
+    .custom-marker:hover {
+      box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(240,192,64,0.8);
+    }
+
+    /* Crosshair cursor on map */
+    .leaflet-container { cursor: crosshair !important; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="hud">
+  <h1>◈ MAPA INTERACTIVO</h1>
+  <div class="coords" id="coordsDisplay">Haz click en el mapa para explorar</div>
+</div>
+
+<div id="loading">
+  <div style="position:relative;width:48px;height:48px;">
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+  </div>
+  <span>Cargando datos…</span>
+</div>
+
+<script>
+// ── Init mapa ──────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [40.4168, -3.7038],
+  zoom: 5,
+  zoomControl: false,
+  attributionControl: false
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap',
+  referrerPolicy: 'strict-origin-when-cross-origin'
+}).addTo(map);
+
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// Update HUD coords on mousemove
+map.on('mousemove', e => {
+  document.getElementById('coordsDisplay').textContent =
+    `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+});
+
+// ── Real API call ──────────────────────────────────────────────────────────
+async function fetchLocationData(lat, lng) {
+  const apiKey = '056f2a10a92f8f5a14309b0071cbda9de51de2146f98859969f95e98204525c0'
+  const res = await fetch(
+    `http://127.0.0.1:8000/api/pokecrimenweather/?lat=${lat}&lon=${lng}&ApiKey=${apiKey}`,
+    {
+      method: 'GET'
+    }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+// ── Weather icon mapper ────────────────────────────────────────────────────
+function weatherEmoji(main) {
+  const map = { Clear:'☀️', Clouds:'☁️', Rain:'🌧️', Drizzle:'🌦️',
+                Thunderstorm:'⛈️', Snow:'❄️', Mist:'🌫️', Fog:'🌫️' };
+  return map[main] || '🌡️';
+}
+
+// ── Type badge color class ─────────────────────────────────────────────────
+function typeClass(t) {
+  const m = { grass:'type-grass', ground:'type-ground', fire:'type-fire', water:'type-water' };
+  return m[t] || 'type-default';
+}
+
+// ── Build popup HTML ───────────────────────────────────────────────────────
+function buildPopupHTML(data, lat, lng) {
+  const w = data.clima.list[0];
+  const city = data.clima.city;
+  const temp = Math.round(w.main.temp);
+  const emoji = weatherEmoji(w.weather[0].main);
+  const desc = w.weather[0].description;
+  const humidity = w.main.humidity;
+  const wind = w.wind.speed;
+
+  const typeBadges = data.pokemon.types.map(t =>
+    `<span class="type-badge ${typeClass(t)}">${t}</span>`
+  ).join('');
+
+  const pokeNum = data.pokemon.name === 'torterra' ? 389 :
+    Math.floor(Math.random() * 898) + 1; // fallback aleatorio
+  const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokeNum}.png`;
+
+  const restosHTML = data.restaurant?.slice(0, 4).map(r => `
+    <div class="resto-item">
+      <div>
+        <div class="resto-name">${r.name}</div>
+        <div class="resto-addr">${r.address}</div>
+      </div>
+      <div class="resto-right">
+        <div class="resto-rating">★ ${r?.rating ? r?.rating?.toFixed(1) : 'N/A'}</div>
+        ${r.openNow ? '<div class="open-badge">Abierto</div>' : ''}
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="popup-card">
+      <div class="popup-header">
+        <span class="coords-label">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+        <span class="tag">◈ INFO PUNTO</span>
+      </div>
+      <div class="popup-scroll">
+      <div class="popup-body">
+
+        <!-- MSG SATIRICO -->
+        <div class="msg-section">
+          <div class="msg-eyebrow">Pronóstico del día</div>
+          <div class="msg-text">${data.msg}</div>
+        </div>
+
+        <!-- CLIMA -->
+        <div class="section">
+          <div class="section-label">Clima · ${city.name}, ${city.country}</div>
+          <div class="weather-row">
+            <div class="weather-icon">${emoji}</div>
+            <div class="weather-info">
+              <div class="weather-temp">${temp}°C</div>
+              <div class="weather-desc">${desc}</div>
+              <div class="weather-meta">
+                <div class="meta-item">💧 <span>${humidity}%</span></div>
+                <div class="meta-item">💨 <span>${wind} m/s</span></div>
+                <div class="meta-item">🌡 Sens. <span>${Math.round(w.main.feels_like)}°</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- POKEMON -->
+        <div class="section">
+          <div class="section-label">Pokémon del área</div>
+          <div class="poke-row">
+            <img class="poke-sprite" src="${spriteUrl}" alt="${data.pokemon.name}" />
+            <div>
+              <div class="poke-name">${data.pokemon.name}</div>
+              <div class="poke-types">${typeBadges}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CRIME -->
+        <div class="section">
+          <div class="section-label">Caso notable de Hoy</div>
+          <div class="crime-title">${data.crime.itemLabel}</div>
+          <div class="crime-desc">${data.crime.itemDescription}</div>
+          <div class="crime-links">Referencias: <span>${data.crime.enlaces}</span></div>
+        </div>
+
+        <!-- RESTAURANTES -->
+        <div class="section">
+          <div class="section-label">Restaurantes cercanos</div>
+          <div class="resto-list">${restosHTML ? restosHTML : '<div class="no-restaurants">No hay restaurantes cercanos.</div>'}</div>
+        </div>
+
+      </div>
+      </div><!-- /popup-scroll -->
+    </div>
+  `;
+}
+
+// ── Click handler ──────────────────────────────────────────────────────────
+const loading = document.getElementById('loading');
+const markers = [];
+
+map.on('click', async (e) => {
+  const { lat, lng } = e.latlng;
+
+  // Show loading
+  loading.classList.add('active');
+
+  try {
+    const data = await fetchLocationData(lat, lng);
+    console.log(data);
+    
+
+    // Custom marker icon
+    const icon = L.divIcon({
+      className: '',
+      html: '<div class="custom-marker"></div>',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+      popupAnchor: [0, -16]
+    });
+
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+
+    const popup = L.popup({
+      maxWidth: 380,
+      minWidth: 360,
+      className: 'custom-popup',
+      closeButton: true,
+      autoClose: false,
+      closeOnClick: false
+    }).setContent(buildPopupHTML(data, lat, lng));
+
+    marker.bindPopup(popup).openPopup();
+
+    // Track markers
+    markers.push(marker);
+
+    // Right-click marker to remove
+    marker.on('contextmenu', () => {
+      map.removeLayer(marker);
+    });
+
+  } catch (err) {
+    console.error('Error fetching data:', err);
+  } finally {
+    loading.classList.remove('active');
+  }
+});
+</script>
+</body>
+</html>

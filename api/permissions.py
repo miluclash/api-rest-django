@@ -6,7 +6,7 @@ class hasAPIKey(BasePermission):
     message = "Para acceder a este recurso, debes usar un api_key válido asociado a tu cuenta."
 
     def has_permission(self, request, view):
-        token = request.headers.get('Authorization', '').split('Bearer ')[-1]
+        token = request.query_params.get('ApiKey', '')
         if not token:
             return False
         try:
