@@ -29,6 +29,7 @@ from rest_framework import status
 
 from django.core.cache import cache
 from datetime import timedelta
+import random
 # Create your views here.
 api_key = os.getenv("OPENWEATHER_API_KEY")
 
@@ -107,12 +108,23 @@ def api_view_jonathan(request):
 
     try:
         pokemon_creacion=PokeAPI()
-        pokemon_elegido=pokemon_creacion.seleccionar_pokemon(
+        # pokemon_elegido=pokemon_creacion.seleccionar_pokemon(
+        #     data_clima["list"][0]["main"]["temp"],
+        #     data_clima["list"][0]["wind"]["speed"],
+        #     data_clima["list"][0]["weather"][0]["id"],
+        #     data_clima["city"]['sun_visible']
+        # )
+        poke_pesos = pokemon_creacion.calcular_pesos( 
             data_clima["list"][0]["main"]["temp"],
             data_clima["list"][0]["wind"]["speed"],
             data_clima["list"][0]["weather"][0]["id"],
             data_clima["city"]['sun_visible']
         )
+        poke_type = pokemon_creacion.seleccionar_tipo(poke_pesos)
+        pokemon_elegido = RedisCache.cache_get_poke_list(poke_type)
+        
+        
+
     except Exception as e:
         return HttpResponse(json.dumps({
             "code": status.HTTP_400_BAD_REQUEST,
@@ -315,7 +327,7 @@ class RedisCache():
                 cache.set(key, value, ttl)
             except Exception as ex:
                 return Response({
-                    "Error":"El caché ha fallado. No se ha podido almacenar el crimen"
+                    "Error":"El caché de Wikidata ha fallado. No se ha podido almacenar el crimen"
                 })
             
     @staticmethod
@@ -329,5 +341,28 @@ class RedisCache():
                 return cache_data
             except Exception as ex:
                 return Response ({
-                    "error": "El caché ha fallado"
+                    "error": "El caché de Wikidata ha fallado"
                 })
+    @staticmethod
+    def cache_add_poke_list(key, value, ttl=604800): #El ttl es una semana en seg
+        try:
+            cache.set(key, value, ttl)
+        except Exception as ex:
+            return Response({
+                    "Error":"El caché de PokeAPI ha fallado. No se ha podido almacenar los pokemon"
+                })
+    @staticmethod
+    def cache_get_poke_list(key): #la llave es el tipo
+        try:
+            cache_data_poke = cache.get(key)
+            if (cache_data_poke== None):
+                lista_nombres = PokeAPI.obtener_pokemon_por_tipo(key) #Esto necesito que se cambie
+                RedisCache.cache_add_poke_list(key, lista_nombres)
+                cache_data_poke= cache.get(key)
+            return random.choice(cache_data_poke)
+        except Exception as ex:
+            return Response ({
+                    "error": "El caché de PokeApi ha fallado"
+                })
+        
+    
