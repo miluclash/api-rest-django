@@ -102,7 +102,8 @@ class PokeAPI:
 
         return random.choices(tipos, weights=probs, k=1)[0]
 
-    def obtener_pokemon_por_tipo(self, tipo):
+    # Si numPokemons es más de 1 devuelve una lista de diccionarios, si es 1 devuelve un diccionario
+    def obtener_pokemon_por_tipo(self, tipo, numPokemons = 1):
         try:
             response = requests.get(f"https://pokeapi.co/api/v2/type/{tipo}")
             if response.status_code != 200:
@@ -110,12 +111,33 @@ class PokeAPI:
             data = response.json()
             if "pokemon" not in data or len(data["pokemon"]) == 0:
                 raise ValueError("No se encontraron pokemon para este tipo")
-            entry = random.choice(data["pokemon"])
-            pokemon_url = entry["pokemon"]["url"]
-            pokemon_response = requests.get(pokemon_url)
-            if pokemon_response.status_code != 200:
-                raise RuntimeError("Error obteniendo datos del pokemon")
-            return pokemon_response.json()
+            #lista completa de todos los pokemons de ese tipo
+            lista_pokemons = data["pokemon"]
+            #si solo se pide uno, mantenemos el comportamiento original
+            if numPokemons == 1:
+                entry = random.choice(lista_pokemons)
+                pokemon_url = entry["pokemon"]["url"]
+                pokemon_response = requests.get(pokemon_url)
+
+                if pokemon_response.status_code != 200:
+                    raise RuntimeError("Error obteniendo datos del pokemon")
+
+                return pokemon_response.json()
+            #si se piden varios, elegimos sin repetir
+            numPokemons = min(numPokemons, len(lista_pokemons))
+            seleccionados = random.sample(lista_pokemons, numPokemons)
+            resultados = []
+            for entry in seleccionados:
+                pokemon_url = entry["pokemon"]["url"]
+                pokemon_response = requests.get(pokemon_url)
+
+                if pokemon_response.status_code != 200:
+                    raise RuntimeError("Error obteniendo datos del pokemon")
+
+                resultados.append(pokemon_response.json())
+
+            return resultados
+
         except requests.exceptions.RequestException:
             raise ConnectionError("No se pudo conectar con PokeAPI")
 
