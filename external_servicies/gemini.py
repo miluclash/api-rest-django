@@ -23,6 +23,7 @@ Actúa como un tuitero español de la vieja escuela (circa 2012), amargado, nihi
 **FORMATO**
 - Máximo 280 caracteres (formato tweet único o hilo de 2 si es necesario por la densidad).
 - Sin introducciones ni despedidas. Solo el texto.
+- No omitir ningún detalle de las variables. El Pokémon, el clima, el caso y el restaurante deben estar presentes en la broma.
             
             **VARIABLES DE ENTRADA:**
             - Pokémon: {pokemon}
