@@ -23,11 +23,22 @@ def wikidata_probando_fechaActual():
     print("test fecha actual pasada")
 
 def wikidata_probando_noHayCrimen():
-    assert(probando_noCrimen is None)
+    assert(probando_noCrimen["itemLabel"] is None)
     print("test fecha sin crimen pasada")
-    
+
+def wikidata_probando_muchasPeticiones():
+    print("Bucle de peticiones para forzar RateLimit")
+    try:
+        for i in range(3000): #muchas peticiones, bucle.
+            print(f"Petición número: {i}")
+            searching_crime.get_crime(fecha_actual)
+            
+    except Exception:
+        print("RageLimit alcanzado")
+
 if __name__=="__main__":
     wikidata_probando_fechaHardcode() 
     wikidata_probando_fechaIntroducida()
     wikidata_probando_fechaActual()
     wikidata_probando_noHayCrimen()
+    wikidata_probando_muchasPeticiones()
