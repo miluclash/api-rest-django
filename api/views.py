@@ -356,7 +356,7 @@ class RedisCache():
         try:
             cache_data_poke = cache.get(key)
             if (cache_data_poke== None):
-                lista_nombres = PokeAPI.obtener_pokemon_por_tipo(key) #Esto necesito que se cambie
+                lista_nombres = PokeAPI.obtener_pokemon_por_tipo(key, 10) #Esto necesito que se cambie
                 RedisCache.cache_add_poke_list(key, lista_nombres)
                 cache_data_poke= cache.get(key)
             return random.choice(cache_data_poke)
