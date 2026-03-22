@@ -140,3 +140,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 CORS_ALLOW_ALL_ORIGINS = True
+CONTENT_SECURITY_POLICY = {
+    "frame-ancestors": "'self' 'file:' http://localhost:8000",
+}
+X_FRAME_OPTIONS = "ALLOWALL"
