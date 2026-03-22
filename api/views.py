@@ -223,22 +223,21 @@ class PokeCrimeWeatherView(APIView):
         # Consulta a PokeAPI y selección de Pokémon
         try:
             pokemon_creacion=PokeAPI()
-            pokemon_elegido=pokemon_creacion.seleccionar_pokemon(
-                data_clima["list"][0]["main"]["temp"],
-                data_clima["list"][0]["wind"]["speed"],
-                data_clima["list"][0]["weather"][0]["id"],
-                data_clima["city"]['sun_visible']
-            )
-            #TODO REVISAR PORQUE ESTO TRAE MUCHOS POKEMONES y satura el modelo de gemini.
-            # poke_pesos = pokemon_creacion.calcular_pesos( 
+            # pokemon_elegido=pokemon_creacion.seleccionar_pokemon(
             #     data_clima["list"][0]["main"]["temp"],
             #     data_clima["list"][0]["wind"]["speed"],
             #     data_clima["list"][0]["weather"][0]["id"],
             #     data_clima["city"]['sun_visible']
             # )
-            # poke_type = pokemon_creacion.seleccionar_tipo(poke_pesos)
-            # pokemon_elegido = RedisCache.cache_get_poke_list(poke_type)
-        
+            #TODO REVISAR PORQUE ESTO TRAE MUCHOS POKEMONES y satura el modelo de gemini.
+            poke_pesos = pokemon_creacion.calcular_pesos( 
+                data_clima["list"][0]["main"]["temp"],
+                data_clima["list"][0]["wind"]["speed"],
+                data_clima["list"][0]["weather"][0]["id"],
+                data_clima["city"]['sun_visible']
+            )
+            poke_type = pokemon_creacion.seleccionar_tipo(poke_pesos)
+            pokemon_elegido = RedisCache.cache_get_poke_list(poke_type)
         except Exception as e:
             return HttpResponse(json.dumps({
                 "code": status.HTTP_400_BAD_REQUEST,
@@ -272,12 +271,21 @@ class PokeCrimeWeatherView(APIView):
                 long=float(lon), 
                 # radius=1500.0
             )
-            print(raw_data)
+
             if raw_data and 'places' in raw_data:
                 serializer = PlaceSerializer(raw_data['places'], many=True)
                 restaurante = serializer.data
+        except Exception as e:
+            return HttpResponse(
+                json.dumps({
+                    "code": status.HTTP_400_BAD_REQUEST,
+                    "msg": "Error al obtener restaurante. " + e.__str__()
+                }),
+                content_type="application/json",
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )   
         
-
+        try:
             gemini = Gemini()
             gemini_response = gemini.generar_broma(
                 pokemon_elegido,
@@ -487,7 +495,7 @@ class RedisCache():
                 # TODO REVISAR PORQUE ESTO TRAE MUCHOS POKEMONES y satura el modelo de gemini.
                 lista_nombres = PokeAPI.obtener_pokemon_por_tipo(key, 10) #Esto necesito que se cambie
                 #TODO PREGUNTAR A ANDREA Y A KEVIN PORUQUE NO SE RETORNA. UNA LISTA
-                return lista_nombres
+                # return lista_nombres
                 RedisCache.cache_add_poke_list(key, lista_nombres)
                 cache_data_poke= cache.get(key)
             return random.choice(cache_data_poke)

@@ -103,7 +103,8 @@ class PokeAPI:
         return random.choices(tipos, weights=probs, k=1)[0]
 
     # Si numPokemons es más de 1 devuelve una lista de diccionarios, si es 1 devuelve un diccionario
-    def obtener_pokemon_por_tipo(self, tipo, numPokemons = 1):
+    @staticmethod
+    def obtener_pokemon_por_tipo(tipo, numPokemons = 1):
         try:
             response = requests.get(f"https://pokeapi.co/api/v2/type/{tipo}")
             if response.status_code != 200:
@@ -121,8 +122,7 @@ class PokeAPI:
 
                 if pokemon_response.status_code != 200:
                     raise RuntimeError("Error obteniendo datos del pokemon")
-
-                return pokemon_response.json()
+                return PokeAPI.limpiar_pokemon(pokemon_response.json())
             #si se piden varios, elegimos sin repetir
             numPokemons = min(numPokemons, len(lista_pokemons))
             seleccionados = random.sample(lista_pokemons, numPokemons)
@@ -133,13 +133,20 @@ class PokeAPI:
 
                 if pokemon_response.status_code != 200:
                     raise RuntimeError("Error obteniendo datos del pokemon")
-
-                resultados.append(pokemon_response.json())
+                resultados.append(PokeAPI.limpiar_pokemon(pokemon_response.json()))
 
             return resultados
 
         except requests.exceptions.RequestException:
             raise ConnectionError("No se pudo conectar con PokeAPI")
+
+    @staticmethod
+    def limpiar_pokemon(data):
+        return {
+            "name": data["name"],
+            "types": [t["type"]["name"] for t in data["types"]]
+        }
+
 
     def seleccionar_pokemon(self, temperature, windspeed, weather_code, is_day):
         if not isinstance(temperature, (int, float)):
