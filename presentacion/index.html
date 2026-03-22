@@ -867,7 +867,7 @@ LIMIT 1"""</span>
      8 — METODOLOGÍA: vistas de desarrollo
 ══════════════════════════════════════════════════ -->
 <div class="slide" id="s8">
-  <span class="stag vistas">Metodología de trabajo</span>
+  <span class="stag vistas">Jonathan - Metodología de trabajo</span>
   <h2>Vistas de desarrollo — <span class="gold">no pisarnos los cambios</span></h2>
   <p class="sub">Cada persona tenía su propia vista aislada para trabajar en paralelo sin conflictos de git</p>
   <div class="body row">
@@ -958,7 +958,7 @@ urlpatterns = [
      9 — PokeCrimeWeatherView (VISTA PRINCIPAL)
 ══════════════════════════════════════════════════ -->
 <div class="slide" id="s9">
-  <span class="stag vistas">Vista principal · PokeCrimeWeatherView</span>
+  <span class="stag vistas">Andrea - Jonathan - Vista principal · PokeCrimeWeatherView</span>
   <h2><span class="cyan">PokeCrimeWeatherView</span> — el endpoint de producción</h2>
   <p class="sub"><span class="GET">GET</span><span class="ep">/api/pokecrimenweather/?lat=40.4&amp;lon=-3.7&amp;date=2026-03-22&amp;ApiKey=…</span></p>
   <div class="body row">
@@ -1095,7 +1095,7 @@ urlpatterns = [
      10 — Vistas de autenticación (+ serializers)
 ══════════════════════════════════════════════════ -->
 <div class="slide" id="s10">
-  <span class="stag vistas">Vistas de autenticación · Serializers</span>
+  <span class="stag vistas">Kevin - Michael - Vistas de autenticación · Serializers</span>
   <h2>Register / Login / Profile / Logout <span class="gold">+</span> Serializers</h2>
   <p class="sub">Gestión de usuarios con Django REST Framework + transformación de datos</p>
   <div class="body row">
@@ -1363,57 +1363,8 @@ urlpatterns = [
     <div class="right">
       <div class="code-col">
         <div class="clabel">core/templates/index.html — JavaScript</div>
-        <pre><span class="cm">// ── Inicializar mapa ─────────────────────────────────</span>
-<span class="kw">const</span> map = L.map(<span class="st">'map'</span>).setView([<span class="nm">40.4168</span>, <span class="nm">-3.7038</span>], <span class="nm">13</span>);
-L.tileLayer(<span class="st">'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'</span>)
- .addTo(map);
-
-<span class="cm">// ── Click en el mapa → petición al API ───────────────</span>
-map.on(<span class="st">'click'</span>, <span class="kw">async</span> (e) => {
-  <span class="kw">const</span> { lat, lng } = e.latlng;
-  showLoader();
-
-  <span class="kw">const</span> apiKey = <span class="st">"&lt;token del usuario&gt;"</span>;
-  <span class="kw">const</span> url    = <span class="st">`/api/pokecrimenweather/`</span>
-               + <span class="st">`?lat=${lat}&amp;lon=${lng}&amp;ApiKey=${apiKey}`</span>;
-
-  <span class="kw">const</span> res  = <span class="kw">await</span> fetch(url);
-  <span class="kw">const</span> data = <span class="kw">await</span> res.json();
-
-  hideLoader();
-  renderPanel(data);
-});
-
-<span class="cm">// ── Renderizar panel de resultados ───────────────────</span>
-<span class="kw">function</span> <span class="fn">renderPanel</span>(data) {
-  <span class="cm">// Clima</span>
-  document.getElementById(<span class="st">'temp'</span>).textContent =
-    data.clima.list[<span class="nm">0</span>].main.temp + <span class="st">' °C'</span>;
-
-  <span class="cm">// Pokémon (sprite desde pokeapi)</span>
-  document.getElementById(<span class="st">'pokemon-name'</span>).textContent =
-    data.pokemon.name;
-  document.getElementById(<span class="st">'pokemon-sprite'</span>).src =
-    <span class="st">`https://pokeapi.co/api/v2/pokemon/${data.pokemon.name}`</span>;
-
-  <span class="cm">// Crimen</span>
-  document.getElementById(<span class="st">'crime-title'</span>).textContent =
-    data.crime?.itemLabel ?? <span class="st">'Sin datos'</span>;
-  document.getElementById(<span class="st">'crime-desc'</span>).textContent =
-    data.crime?.itemDescription ?? <span class="st">''</span>;
-
-  <span class="cm">// Restaurante</span>
-  <span class="kw">const</span> r = data.restaurant?.[<span class="nm">0</span>];
-  <span class="kw">if</span> (r) {
-    document.getElementById(<span class="st">'rest-name'</span>).textContent = r.name;
-    document.getElementById(<span class="st">'rest-addr'</span>).textContent = r.address;
-    document.getElementById(<span class="st">'rest-rating'</span>).textContent =
-      <span class="st">'★ '</span> + r.rating;
-  }
-
-  <span class="cm">// Tweet Gemini</span>
-  document.getElementById(<span class="st">'gemini-msg'</span>).textContent = data.msg;
-}</pre>
+       
+        <iframe src="http://localhost:8000/frontend/" frameborder="0"></iframe>
       </div>
     </div>
   </div>
@@ -1423,7 +1374,7 @@ map.on(<span class="st">'click'</span>, <span class="kw">async</span> (e) => {
      14 — ERRORES ESPERADOS
 ══════════════════════════════════════════════════ -->
 <div class="slide" id="s14">
-  <span class="stag err">Errores</span>
+  <span class="stag err">Andrea - Errores</span>
   <h2>Errores que <span class="red">esperamos</span></h2>
   <p class="sub">Casos de fallo controlado en el endpoint principal</p>
   <div class="body row">
@@ -1510,7 +1461,7 @@ asociado a tu cuenta."</span>
      15 — ESTRATEGIA GIT
 ══════════════════════════════════════════════════ -->
 <div class="slide" id="s15">
-  <span class="stag meta">Git</span>
+  <span class="stag meta">Jonathan - GIT</span>
   <h2>Estrategia de <span class="gold">Git</span></h2>
   <p class="sub">Feature branches → Pull Requests → merge a develop</p>
   <div class="body row">
@@ -1612,7 +1563,7 @@ api_key = os.getenv(<span class="st">'GEMINI_API_KEY'</span>)</pre>
      16 — POR QUÉ DRF
 ══════════════════════════════════════════════════ -->
 <div class="slide" id="s16">
-  <span class="stag meta">Arquitectura</span>
+  <span class="stag meta"> Michael - Kevin - Arquitectura</span>
   <h2>¿Por qué <span class="gold">Serializers</span> y <span class="cyan">Django REST</span>?</h2>
   <p class="sub">Decisiones técnicas razonadas</p>
   <div class="body row">
